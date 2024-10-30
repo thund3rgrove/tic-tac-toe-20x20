@@ -1,0 +1,14 @@
+table {
+    border: 3px solid black;
+    border-collapse: collapse;;
+}
+
+td {
+    justify-content: center;
+    align-items: center;
+    width:20px;
+    height: 20px;
+    padding: 5px;
+    margin: 5px;
+    border: 1px solid black;
+}
