@@ -15,6 +15,8 @@ const socket = io();
 // Получаем roomId из URL
 const roomId = window.location.pathname.split('/').pop();
 
+document.getElementById('roomIdLabel').innerText = roomId;
+
 // Получаем обновление доски от сервера
 socket.on('updateBoard', (boardState) => {
     console.log('need to update the board')

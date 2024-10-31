@@ -45,6 +45,10 @@ io.on('connection', (socket) => {
         if (lobby[roomId]) { // Проверяем, существует ли комната
             socket.join(roomId);
             socket.emit('roomJoined', roomId);
+
+            // Отправляем состояние доски новому игроку
+            socket.emit('updateBoard', lobby[roomId].game);
+
             io.to(roomId).emit('message', `Новый игрок присоединился к комнате ${roomId}`);
         } else {
             socket.emit('error', 'Комната не существует');

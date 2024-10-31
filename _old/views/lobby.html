@@ -1,0 +1,53 @@
+<!-- views/lobby.html -->
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <link rel="stylesheet" href="/style.css">
+    <title>Lobby</title>
+</head>
+<body>
+    <main>
+        <h2>Лобби: <span id="lobbyId"></span></h2>
+        <div id="playersList">
+            <h3>Игроки:</h3>
+            <ul id="players"></ul>
+        </div>
+        <button id="startGameBtn" disabled>Начать игру</button>
+    </main>
+
+    <script src="/socket.io/socket.io.js"></script>
+    <script>
+        const socket = io();
+        const lobbyId = window.location.pathname.split('/').pop();
+        
+        document.getElementById('lobbyId').innerText = lobbyId;
+
+        socket.emit('joinLobbyRoom', lobbyId);
+
+        socket.on('updatePlayers', (players) => {
+            const playersList = document.getElementById('players');
+            playersList.innerHTML = '';
+
+            // Обновление списка игроков
+            players.forEach((player) => {
+                const listItem = document.createElement('li');
+                const symbol = player.symbol || '';
+                listItem.textContent = `${symbol} - ${player.name} ${player.isSelf ? '(Вы)' : ''}`;
+                playersList.appendChild(listItem);
+            });
+
+            document.getElementById('startGameBtn').disabled = players.length < 3;
+        });
+
+        document.getElementById('startGameBtn').addEventListener('click', () => {
+            socket.emit('startGame', lobbyId);
+        });
+
+        socket.on('gameStarted', () => {
+            window.location.href = `/game/${lobbyId}`;
+        });
+    </script>
+</body>
+</html>

@@ -1,0 +1,34 @@
+<!-- views/game.html -->
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <link rel="stylesheet" href="/style.css">
+    <title>Игра</title>
+</head>
+<body>
+    <main>
+        <h2>Игра в лобби: <span id="lobbyId"></span></h2>
+        <div id="gameArea">
+            <h3>Состояние игры</h3>
+            <div id="gameStatus"></div>
+            <!-- Здесь можно добавить дополнительную логику для игрового процесса -->
+        </div>
+    </main>
+
+    <script src="/socket.io/socket.io.js"></script>
+    <script>
+        const socket = io();
+        const lobbyId = window.location.pathname.split('/').pop();
+        
+        document.getElementById('lobbyId').innerText = lobbyId;
+
+        socket.emit('joinLobbyRoom', lobbyId);
+
+        socket.on('updateGameStatus', (status) => {
+            document.getElementById('gameStatus').innerText = status;
+        });
+    </script>
+</body>
+</html>

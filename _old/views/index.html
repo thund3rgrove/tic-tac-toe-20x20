@@ -1,0 +1,63 @@
+<!-- views/index.html -->
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <link rel="stylesheet" href="/style.css">
+    <title>Game Lobby</title>
+</head>
+<body>
+    <main>
+        <h2>Добро пожаловать в игру на троих!</h2>
+        <div>
+            <label for="playerName">Введите ваше имя:</label>
+            <input type="text" id="playerName" placeholder="Ваше имя" required>
+        </div>
+        <div>
+            <button id="createLobbyBtn">Создать лобби</button>
+        </div>
+        <div>
+            <label for="lobbyId">Или подключитесь к лобби по ID:</label>
+            <input type="text" id="lobbyId" placeholder="ID лобби">
+            <button id="joinLobbyBtn">Подключиться</button>
+        </div>
+    </main>
+
+    <script src="/socket.io/socket.io.js"></script>
+    <script>
+        const socket = io();
+        
+        document.getElementById('createLobbyBtn').addEventListener('click', () => {
+            const playerName = document.getElementById('playerName').value.trim();
+            if (playerName) {
+                socket.emit('createLobby', playerName);
+            } else {
+                alert("Пожалуйста, введите ваше имя.");
+            }
+        });
+
+        document.getElementById('joinLobbyBtn').addEventListener('click', () => {
+            const playerName = document.getElementById('playerName').value.trim();
+            const lobbyId = document.getElementById('lobbyId').value.trim();
+            if (playerName && lobbyId) {
+                socket.emit('joinLobby', { playerName, lobbyId });
+            } else {
+                alert("Пожалуйста, введите ваше имя и ID лобби.");
+            }
+        });
+
+        socket.on('lobbyCreated', (lobbyId) => {
+            window.location.href = `/lobby/${lobbyId}`;
+        });
+
+        socket.on('lobbyJoined', (lobbyId) => {
+            window.location.href = `/lobby/${lobbyId}`;
+        });
+
+        socket.on('error', (message) => {
+            alert(message);
+        });
+    </script>
+</body>
+</html>
