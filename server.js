@@ -31,30 +31,50 @@ io.on('connection', (socket) => {
 
     // Создание комнаты и подключение пользователя
     socket.on('createRoom', () => {
-        const roomId = crypto.randomUUID(); // Генерируем ID комнаты
+        const roomId = crypto.randomUUID();
         lobby[roomId] = {
-            game: Array.from({ length: 20 }, () => Array(20).fill('_')), // Инициализация состояния игры
-            players: [] // Здесь можно хранить информацию о игроках
+            game: Array.from({ length: 20 }, () => Array(20).fill('_')),
+            players: []
         };
         socket.join(roomId);
-        socket.emit('roomCreated', roomId); // Отправляем клиенту ID комнаты
+        socket.emit('roomCreated', roomId);
     });
 
-    // Подключение к существующей комнате
-    socket.on('joinRoom', (roomId) => {
-        if (lobby[roomId]) { // Проверяем, существует ли комната
-            socket.join(roomId);
-            socket.emit('roomJoined', roomId);
-
-            // Отправляем состояние доски новому игроку
-            socket.emit('updateBoard', lobby[roomId].game);
-
-            io.to(roomId).emit('message', `Новый игрок присоединился к комнате ${roomId}`);
-        } else {
+    // Подключение к существующей комнате с именем
+    socket.on('joinRoom', ({ roomId, username }) => {
+        if (!lobby[roomId]) {
             socket.emit('error', 'Комната не существует');
+            return;
         }
+    
+        const existingPlayer = lobby[roomId].players.find(player => player.username === username);
+    
+        if (existingPlayer) {
+            existingPlayer.id = socket.id;
+            existingPlayer.isConnected = true; // Восстанавливаем статус подключения
+            socket.join(roomId);
+            socket.emit('roomJoined', { roomId, player: existingPlayer });
+        } else {
+            const playerNumber = lobby[roomId].players.length;
+            if (playerNumber >= 3) {
+                socket.emit('error', 'Комната уже заполнена');
+                return;
+            }
+    
+            // Создаем нового игрока с уникальным ID сокета
+            const newPlayer = { id: socket.id, username, number: playerNumber, isConnected: true };
+            lobby[roomId].players.push(newPlayer);
+            socket.join(roomId);
+            socket.emit('roomJoined', { roomId, player: newPlayer });
+            io.to(roomId).emit('message', `${username} присоединился к комнате`);
+        }
+    
+        // Отправляем обновленный список игроков всем в комнате
+        io.to(roomId).emit('updatePlayers', lobby[roomId].players);
+        socket.emit('updateBoard', lobby[roomId].game);
     });
-
+    
+    
     // Обработка хода
     socket.on('makeMove', ({ roomId, row, col }) => {
         console.log('handling some move')
@@ -109,7 +129,17 @@ io.on('connection', (socket) => {
 
     // Обработка отключения
     socket.on('disconnect', () => {
-        console.log('Пользователь отключился');
+        for (const roomId in lobby) {
+            const room = lobby[roomId];
+            const player = room.players.find(player => player.id === socket.id);
+            
+            if (player) {
+                player.isConnected = false; // Помечаем игрока как отключенного
+                io.to(roomId).emit('message', `${player.username} покинул комнату`);
+                io.to(roomId).emit('updatePlayers', room.players);
+                break;
+            }
+        }
     });
 });
 

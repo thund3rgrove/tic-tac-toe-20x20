@@ -9,7 +9,10 @@
 <body>
     <h1>Добро пожаловать в комнату игры</h1>
     <h3>Комната <span id="roomIdLabel"></span></h3>
-    
+
+    <h4>Игроки:</h4>
+    <ul id="playerList"></ul>
+
     <main>
         <h2><span id="currentPlayerTitle">Ход игрока</span> <span id="currentPlayerLabel"></span></h2>
         <button id="resetButton">Играть сначала</button>
@@ -19,16 +22,18 @@
     <script src="/socket.io/socket.io.js"></script>
     <script src="/script.js"></script>
     <script>
-        // Присоединяемся к комнате
-        socket.emit('joinRoom', roomId);
+        document.getElementById('roomIdLabel').innerText = roomId;
 
-        socket.on('updateBoard', (game) => {
-            console.log('got board updated')
-        });
+        socket.emit('joinRoom', { roomId, username: localStorage.getItem('username') });
 
-        // Получаем сообщения от других игроков
-        socket.on('message', (message) => {
-            alert(message); // Например, сообщение о новом игроке
+        socket.on('updatePlayers', (players) => {
+            const playersList = document.getElementById('playersList');
+            playerList.innerHTML = '';
+            players.forEach(player => {
+                const li = document.createElement('li');
+                li.textContent = `${player.username} (Игрок ${player.number})`;
+                playerList.appendChild(li);
+            });
         });
     </script>
 </body>

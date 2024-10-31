@@ -7,27 +7,44 @@
     <link rel="stylesheet" href="/style.css">
 </head>
 <body>
-    <h1>Создать комнату для игры</h1>
+    <h1>Создать или подключиться к комнате для игры</h1>
     <input id="username" type="text" placeholder="Введите ваше имя" required>
-
     <button id="createRoomButton">Создать комнату</button>
-    <pre id="roomIdDisplay">ID комнаты появится здесь</pre>
+
+    <h2>Или подключиться к комнате</h2>
+    <input id="roomIdInput" type="text" placeholder="ID комнаты">
+    <button id="joinRoomButton">Присоединиться</button>
 
     <script src="/socket.io/socket.io.js"></script>
     <script>
         const socket = io();
         const createRoomButton = document.getElementById('createRoomButton');
-        const roomIdDisplay = document.getElementById('roomIdDisplay');
+        const joinRoomButton = document.getElementById('joinRoomButton');
+        const roomIdInput = document.getElementById('roomIdInput');
+        const usernameInput = document.getElementById('username');
 
-        // Создание комнаты и отображение ID
         createRoomButton.addEventListener('click', () => {
+            const username = usernameInput.value.trim();
+            if (!username) return alert('Введите имя');
+
+            localStorage.setItem('username', username); // Сохраняем имя в localStorage
             socket.emit('createRoom');
         });
 
-        // Отображаем ID созданной комнаты
+        joinRoomButton.addEventListener('click', () => {
+            const roomId = roomIdInput.value.trim();
+            const username = usernameInput.value.trim();
+            if (!roomId || !username) return alert('Введите ID комнаты и имя');
+
+            localStorage.setItem('username', username); // Сохраняем имя в localStorage
+            socket.emit('joinRoom', { roomId, username });
+        });
+
         socket.on('roomCreated', (roomId) => {
-            // roomIdDisplay.textContent = `ID комнаты: ${roomId}`;
-            // roomIdDisplay.innerHTML = `<a href="/room/${roomId}">Присоединиться к комнате</a>`;
+            window.location.href = `/room/${roomId}`;
+        });
+
+        socket.on('roomJoined', ({ roomId, player }) => {
             window.location.href = `/room/${roomId}`;
         });
     </script>

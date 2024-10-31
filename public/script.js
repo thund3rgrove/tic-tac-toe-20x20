@@ -17,6 +17,29 @@ const roomId = window.location.pathname.split('/').pop();
 
 document.getElementById('roomIdLabel').innerText = roomId;
 
+const playerList = document.getElementById('playerList');
+const usernameInput = document.getElementById('usernameInput');
+let playerNumber;
+
+socket.on('roomJoined', (data) => {
+    playerNumber = data.playerNumber;
+    updateCurrentPlayer();
+});
+
+// Обновление списка игроков
+socket.on('updatePlayers', (players) => {
+    console.log(players);
+    playerList.innerHTML = ''; // Очищаем список
+    players
+      .sort((a, b) => a.number - b.number) // Сортируем игроков по номеру
+      .forEach(player => {
+          const playerItem = document.createElement('li');
+          playerItem.textContent = `Игрок ${player.number + 1}: ${player.username}`;
+          playerItem.dataset.playerId = player.playerId;
+          playerList.appendChild(playerItem);
+      });
+});
+
 // Получаем обновление доски от сервера
 socket.on('updateBoard', (boardState) => {
     console.log('need to update the board')
@@ -50,8 +73,8 @@ function initBoard() {
 function updateBoardUI(boardState) {
     boardState.forEach((row, i) => {
         row.forEach((cell, j) => {
-            console.log('row', row)
-            console.log('cell', cell)
+            // console.log('row', row)
+            // console.log('cell', cell)
             board.rows[i].cells[j].innerHTML = cell;
         });
     });
