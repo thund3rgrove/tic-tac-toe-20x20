@@ -13,16 +13,29 @@
     <h4>Игроки:</h4>
     <ul id="playerList"></ul>
 
+    <button id="resetButton">Играть сначала</button>
+
     <main>
         <h2><span id="currentPlayerTitle">Ход игрока</span> <span id="currentPlayerLabel"></span></h2>
-        <button id="resetButton">Играть сначала</button>
         <table id="board"></table>
     </main>
 
     <script src="/socket.io/socket.io.js"></script>
     <script src="/script.js"></script>
     <script>
-        document.getElementById('roomIdLabel').innerText = roomId;
+        let roomIdLabel = document.getElementById('roomIdLabel');
+        roomIdLabel.innerText = roomId;
+        
+        roomIdLabel.onclick = () => document.execCommand('copy')
+        roomIdLabel.addEventListener('copy', (ev) => {
+            event.preventDefault();
+            if (event.clipboardData) {
+                event.clipboardData.setData("text/plain", roomId);
+                console.log(event.clipboardData.getData("text"))
+                alert('Copied lobby id to the clipboard')
+            }
+        })
+
 
         socket.emit('joinRoom', { roomId, username: localStorage.getItem('username') });
 

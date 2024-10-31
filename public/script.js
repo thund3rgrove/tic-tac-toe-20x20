@@ -24,7 +24,7 @@ let playerNumber;
 
 socket.on('roomJoined', (data) => {
     playerNumber = data.playerNumber;
-    updateCurrentPlayer();
+    // updateCurrentPlayer();
 });
 
 // Обновление списка игроков

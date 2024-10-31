@@ -11,6 +11,7 @@ const io = new Server(server);
 var fs = require('fs');
 
 const CONFIGURATION = JSON.parse(fs.readFileSync('constraints.json', 'utf8'));
+CONFIGURATION.BOARD_SIZE = parseInt(CONFIGURATION.BOARD_SIZE)
 
 // Используем папку public для статических файлов
 app.use(express.static(join(__dirname, 'public')));
@@ -27,7 +28,8 @@ app.get('/room/:roomId', (req, res) => {
 
 // Лобби для хранения комнат и состояния игры
 const lobby = {};
-const possibleElements = ['X', 'Y', 'Z'];
+// const possibleElements = ['X', 'Y', 'Z'];
+const possibleElements = ['🥺', '🤡']
 
 // Слушаем события подключения
 io.on('connection', (socket) => {
@@ -88,6 +90,7 @@ io.on('connection', (socket) => {
         const room = lobby[roomId]
 
         if (!room) {
+            console.log('no room found')
             socket.emit('error', 'Комната не существует');
             return;
         }

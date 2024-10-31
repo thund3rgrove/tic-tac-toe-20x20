@@ -1,5 +1,5 @@
 {
     "MAX_PLAYERS": "2",
-    "LINE_LENGTH_TO_WIN": "10",
+    "LINE_LENGTH_TO_WIN": "4",
     "BOARD_SIZE": "20"
 }
