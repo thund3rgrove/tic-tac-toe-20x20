@@ -50,7 +50,7 @@ socket.on('updateBoard', (boardState) => {
 });
 
 socket.on('updateCurrentTurn', (currTurn) => {
-    currentPlayerLabel.innerHTML = possibleElements[currTurn];
+    currentPlayerLabel.innerHTML = CONSTRAINTS.PLAYER_PAWNS[currTurn];
 })
 
 // Получаем сообщение об окончании игры
