@@ -7,7 +7,7 @@ resetButton.addEventListener('click', resetBoard);
 
 let lockBoard = false;
 let possibleElements = ['X', 'Y', 'Z']; // Изменено на массив
-let currentTurn = 0; // Добавлено для отслеживания текущего хода
+// let currentTurn = 0; // Добавлено для отслеживания текущего хода
 
 // Создание нового соединения с сервером
 const socket = io();
@@ -16,6 +16,7 @@ const socket = io();
 const roomId = window.location.pathname.split('/').pop();
 
 document.getElementById('roomIdLabel').innerText = roomId;
+// currentPlayerLabel.innerHTML = possibleElements[0];
 
 const playerList = document.getElementById('playerList');
 const usernameInput = document.getElementById('usernameInput');
@@ -44,13 +45,21 @@ socket.on('updatePlayers', (players) => {
 socket.on('updateBoard', (boardState) => {
     console.log('need to update the board')
     updateBoardUI(boardState);
-    updateCurrentPlayer(); // Обновляем текущего игрока после обновления доски
+    // updateCurrentPlayer(boardState); // Обновляем текущего игрока после обновления доски
+    // currentPlayerLabel.innerHTML = boardState.currentTurn;
 });
+
+socket.on('updateCurrentTurn', (currTurn) => {
+    currentPlayerLabel.innerHTML = possibleElements[currTurn];
+})
 
 // Получаем сообщение об окончании игры
 socket.on('gameOver', (winner) => {
-    currentPlayerTitle.innerHTML = "Победа игрока " + winner;
+    // currentPlayerTitle.innerHTML = "Победа игрока " + winner;
+    console.log('winner', winner)
     lockBoard = true;
+    currentPlayerTitle.innerHTML = "Победа игрока";
+    currentPlayerLabel.innerHTML = winner;
 });
 
 // Инициализация доски
@@ -81,11 +90,12 @@ function updateBoardUI(boardState) {
 }
 
 // Обновление отображения текущего игрока
-function updateCurrentPlayer() {
+/* function updateCurrentPlayer(game) {
+    let currentTurn = (game.flat().filter(cell => cell !== '_').length) % 2;
     if (!lockBoard) {
-        currentPlayerLabel.innerHTML = possibleElements[currentTurn % 3]; // Обновляем текущего игрока
+        currentPlayerLabel.innerHTML = possibleElements[currentTurn]; // Обновляем текущего игрока
     }
-}
+} */
 
 // Обработчик кликов
 function cellClickHandler(event) {
@@ -107,4 +117,4 @@ function resetBoard() {
 
 // Начальная настройка
 initBoard();
-updateCurrentPlayer();
+// updateCurrentPlayer(Array.from({ length: 20 }, () => Array(20).fill('_')));

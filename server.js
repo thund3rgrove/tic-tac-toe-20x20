@@ -8,6 +8,10 @@ const app = express();
 const server = createServer(app);
 const io = new Server(server);
 
+var fs = require('fs');
+
+const CONFIGURATION = JSON.parse(fs.readFileSync('constraints.json', 'utf8'));
+
 // Используем папку public для статических файлов
 app.use(express.static(join(__dirname, 'public')));
 
@@ -33,8 +37,10 @@ io.on('connection', (socket) => {
     socket.on('createRoom', () => {
         const roomId = crypto.randomUUID();
         lobby[roomId] = {
-            game: Array.from({ length: 20 }, () => Array(20).fill('_')),
-            players: []
+            // game: Array.from({ length: 20 }, () => Array(20).fill('_')),
+            game: Array.from({ length: CONFIGURATION.BOARD_SIZE }, () => Array(CONFIGURATION.BOARD_SIZE).fill('_')),
+            players: [],
+            currentTurn: 0 // Изначально первый игрок
         };
         socket.join(roomId);
         socket.emit('roomCreated', roomId);
@@ -71,6 +77,7 @@ io.on('connection', (socket) => {
     
         // Отправляем обновленный список игроков всем в комнате
         io.to(roomId).emit('updatePlayers', lobby[roomId].players);
+        io.to(roomId).emit('updateCurrentTurn', lobby[roomId].currentTurn);
         socket.emit('updateBoard', lobby[roomId].game);
     });
     
@@ -78,45 +85,65 @@ io.on('connection', (socket) => {
     // Обработка хода
     socket.on('makeMove', ({ roomId, row, col }) => {
         console.log('handling some move')
-        const game = lobby[roomId]?.game; // Проверяем наличие игры в комнате
+        const room = lobby[roomId]
+
+        if (!room) {
+            socket.emit('error', 'Комната не существует');
+            return;
+        }
+
+        const game = room.game; // Проверяем наличие игры в комнате
+
         // console.log(game)
         if (game && game[row][col] === '_') {
             console.log('clicked in empty spot')
-            const currentTurn = (game.flat().filter(cell => cell !== '_').length) % 3; // Определяем текущего игрока
-            const symbol = possibleElements[currentTurn];
+            // const currentTurn = (game.flat().filter(cell => cell !== '_').length) % 2; // Определяем текущего игрока
+            const currentTurn = room.currentTurn;
+            
+            const playerNumber = room.players.find(player => player.id === socket.id)?.number; // Получение индекса игрока
+            if (currentTurn !== playerNumber) {
+                socket.emit('error', 'Это не ваш ход');
+                return;
+            }
 
+            const symbol = possibleElements[currentTurn];
+            
             console.log('currently playing', currentTurn, symbol)
 
             game[row][col] = symbol; // Обновляем состояние игры
-            console.log(game);
+
             io.to(roomId).emit('updateBoard', game); // Отправляем обновлённое состояние доски всем игрокам
 
             // Проверка на победу
             if (checkWin(game, row, col)) {
-                io.to(roomId).emit('gameOver', symbol);
+                io.to(roomId).emit('gameOver', currentTurn);
+            } else {
+                // room.currentTurn = (currentTurn + 1) % room.players.length; // Переходим к следующему игроку
+                room.currentTurn = (currentTurn + 1) % CONFIGURATION.MAX_PLAYERS; // Переходим к следующему игроку
+                io.to(roomId).emit('updateCurrentTurn', room.currentTurn);
             }
         }
     });
 
     function checkWin(board, row, col) {
         return (
-            checkDirection(board, row, col, 0, 1) ||   // горизонталь
-            checkDirection(board, row, col, 1, 0) ||   // вертикаль
-            checkDirection(board, row, col, 1, 1) ||   // диагональ слева направо
-            checkDirection(board, row, col, 1, -1)     // диагональ справа налево
+            checkDirection(board, row, col, 0, 1, CONFIGURATION.LINE_LENGTH_TO_WIN) ||   // горизонталь
+            checkDirection(board, row, col, 1, 0, CONFIGURATION.LINE_LENGTH_TO_WIN) ||   // вертикаль
+            checkDirection(board, row, col, 1, 1, CONFIGURATION.LINE_LENGTH_TO_WIN) ||   // диагональ слева направо
+            checkDirection(board, row, col, 1, -1, CONFIGURATION.LINE_LENGTH_TO_WIN)     // диагональ справа налево
         );
     }
 
-    function checkDirection(board, row, col, rowDir, colDir) {
+    function checkDirection(board, row, col, rowDir, colDir, length) {
         const symbol = board[row][col];
         if (symbol === '_') return false;
-
-        for (let offset = -3; offset <= 0; offset++) {
+    
+        for (let offset = -length + 1; offset <= 0; offset++) {
             let match = true;
-            for (let i = 0; i < 4; i++) {
+            for (let i = 0; i < length; i++) {
                 let r = row + (offset + i) * rowDir;
                 let c = col + (offset + i) * colDir;
-                if (r < 0 || r >= 20 || c < 0 || c >= 20 || board[r][c] !== symbol) {
+                if (r < 0 || r >= CONFIGURATION.BOARD_SIZE || c < 0 || c >= CONFIGURATION.BOARD_SIZE || board[r][c] !== symbol) {
                     match = false;
                     break;
                 }
