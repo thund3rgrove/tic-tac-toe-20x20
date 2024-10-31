@@ -3,20 +3,16 @@ const { createServer } = require('node:http');
 const { join } = require('path');
 const { Server } = require('socket.io');
 const crypto = require('crypto'); // Для генерации случайных идентификаторов
+const CONSTRAINTS = require('./config.js'); // Импортируем настройки
 
 const app = express();
 const server = createServer(app);
 const io = new Server(server);
 
-// var fs = require('fs');
-
-// const CONSTRAINTS = JSON.parse(fs.readFileSync('constraints.json', 'utf8'));
-// CONSTRAINTS.BOARD_SIZE = parseInt(CONSTRAINTS.BOARD_SIZE)
-const CONSTRAINTS = require('./config.js')
-
 // Используем папку public для статических файлов
 app.use(express.static(join(__dirname, 'public')));
 
+// Получение ограничений через API
 app.get('/api/constraints', (req, res) => {
     res.json(CONSTRAINTS);
 });
@@ -33,8 +29,6 @@ app.get('/room/:roomId', (req, res) => {
 
 // Лобби для хранения комнат и состояния игры
 const lobby = {};
-// const possibleElements = ['X', 'Y', 'Z'];
-// const possibleElements = ['🥺', '🤡']
 
 // Слушаем события подключения
 io.on('connection', (socket) => {
@@ -44,7 +38,6 @@ io.on('connection', (socket) => {
     socket.on('createRoom', () => {
         const roomId = crypto.randomUUID();
         lobby[roomId] = {
-            // game: Array.from({ length: 20 }, () => Array(20).fill('_')),
             game: Array.from({ length: CONSTRAINTS.BOARD_SIZE }, () => Array(CONSTRAINTS.BOARD_SIZE).fill('_')),
             players: [],
             currentTurn: 0 // Изначально первый игрок
@@ -59,9 +52,9 @@ io.on('connection', (socket) => {
             socket.emit('error', 'Комната не существует');
             return;
         }
-    
+
         const existingPlayer = lobby[roomId].players.find(player => player.username === username);
-    
+
         if (existingPlayer) {
             existingPlayer.id = socket.id;
             existingPlayer.isConnected = true; // Восстанавливаем статус подключения
@@ -73,51 +66,39 @@ io.on('connection', (socket) => {
                 socket.emit('error', 'Комната уже заполнена');
                 return;
             }
-    
-            // Создаем нового игрока с уникальным ID сокета
+
             const newPlayer = { id: socket.id, username, number: playerNumber, isConnected: true };
             lobby[roomId].players.push(newPlayer);
             socket.join(roomId);
             socket.emit('roomJoined', { roomId, player: newPlayer });
             io.to(roomId).emit('message', `${username} присоединился к комнате`);
         }
-    
+
         // Отправляем обновленный список игроков всем в комнате
         io.to(roomId).emit('updatePlayers', lobby[roomId].players);
         io.to(roomId).emit('updateCurrentTurn', lobby[roomId].currentTurn);
         socket.emit('updateBoard', lobby[roomId].game);
     });
-    
-    
+
     // Обработка хода
     socket.on('makeMove', ({ roomId, row, col }) => {
-        console.log('handling some move')
-        const room = lobby[roomId]
-
+        const room = lobby[roomId];
         if (!room) {
-            console.log('no room found')
             socket.emit('error', 'Комната не существует');
             return;
         }
 
-        const game = room.game; // Проверяем наличие игры в комнате
-
-        // console.log(game)
-        if (game && game[row][col] === '_') {
-            console.log('clicked in empty spot')
-            // const currentTurn = (game.flat().filter(cell => cell !== '_').length) % 2; // Определяем текущего игрока
+        const game = room.game;
+        if (game[row][col] === '_') {
             const currentTurn = room.currentTurn;
-            
-            const playerNumber = room.players.find(player => player.id === socket.id)?.number; // Получение индекса игрока
+            const playerNumber = room.players.find(player => player.id === socket.id)?.number;
+
             if (currentTurn !== playerNumber) {
                 socket.emit('error', 'Это не ваш ход');
                 return;
             }
 
             const symbol = CONSTRAINTS.PLAYER_PAWNS[currentTurn];
-            
-            console.log('currently playing', currentTurn, symbol)
-
             game[row][col] = symbol; // Обновляем состояние игры
 
             io.to(roomId).emit('updateBoard', game); // Отправляем обновлённое состояние доски всем игрокам
@@ -126,8 +107,7 @@ io.on('connection', (socket) => {
             if (checkWin(game, row, col)) {
                 io.to(roomId).emit('gameOver', currentTurn);
             } else {
-                // room.currentTurn = (currentTurn + 1) % room.players.length; // Переходим к следующему игроку
-                room.currentTurn = (currentTurn + 1) % CONSTRAINTS.MAX_PLAYERS; // Переходим к следующему игроку
+                room.currentTurn = (currentTurn + 1) % CONSTRAINTS.MAX_PLAYERS; // Переход к следующему игроку
                 io.to(roomId).emit('updateCurrentTurn', room.currentTurn);
             }
         }
@@ -135,39 +115,48 @@ io.on('connection', (socket) => {
 
     function checkWin(board, row, col) {
         return (
-            checkDirection(board, row, col, 0, 1, CONSTRAINTS.LINE_LENGTH_TO_WIN) ||   // горизонталь
-            checkDirection(board, row, col, 1, 0, CONSTRAINTS.LINE_LENGTH_TO_WIN) ||   // вертикаль
-            checkDirection(board, row, col, 1, 1, CONSTRAINTS.LINE_LENGTH_TO_WIN) ||   // диагональ слева направо
-            checkDirection(board, row, col, 1, -1, CONSTRAINTS.LINE_LENGTH_TO_WIN)     // диагональ справа налево
+            checkDirection(board, row, col, 0, 1) ||   // горизонталь
+            checkDirection(board, row, col, 1, 0) ||   // вертикаль
+            checkDirection(board, row, col, 1, 1) ||   // диагональ слева направо
+            checkDirection(board, row, col, 1, -1)     // диагональ справа налево
         );
     }
 
-    function checkDirection(board, row, col, rowDir, colDir, length) {
+    function checkDirection(board, row, col, rowDir, colDir) {
         const symbol = board[row][col];
         if (symbol === '_') return false;
-    
-        for (let offset = -length + 1; offset <= 0; offset++) {
-            let match = true;
-            for (let i = 0; i < length; i++) {
-                let r = row + (offset + i) * rowDir;
-                let c = col + (offset + i) * colDir;
-                if (r < 0 || r >= CONSTRAINTS.BOARD_SIZE || c < 0 || c >= CONSTRAINTS.BOARD_SIZE || board[r][c] !== symbol) {
-                    match = false;
-                    break;
-                }
-            }
-            if (match) return true;
-        }
-        return false;
-    }
 
+        let count = 1;
+
+        // Проверяем в положительном направлении
+        for (let i = 1; i < CONSTRAINTS.LINE_LENGTH_TO_WIN; i++) {
+            const r = row + i * rowDir;
+            const c = col + i * colDir;
+            if (r < 0 || r >= CONSTRAINTS.BOARD_SIZE || c < 0 || c >= CONSTRAINTS.BOARD_SIZE || board[r][c] !== symbol) {
+                break;
+            }
+            count++;
+        }
+
+        // Проверяем в отрицательном направлении
+        for (let i = 1; i < CONSTRAINTS.LINE_LENGTH_TO_WIN; i++) {
+            const r = row - i * rowDir;
+            const c = col - i * colDir;
+            if (r < 0 || r >= CONSTRAINTS.BOARD_SIZE || c < 0 || c >= CONSTRAINTS.BOARD_SIZE || board[r][c] !== symbol) {
+                break;
+            }
+            count++;
+        }
+
+        return count >= CONSTRAINTS.LINE_LENGTH_TO_WIN;
+    }
 
     // Обработка отключения
     socket.on('disconnect', () => {
         for (const roomId in lobby) {
             const room = lobby[roomId];
             const player = room.players.find(player => player.id === socket.id);
-            
+
             if (player) {
                 player.isConnected = false; // Помечаем игрока как отключенного
                 io.to(roomId).emit('message', `${player.username} покинул комнату`);
@@ -177,8 +166,6 @@ io.on('connection', (socket) => {
         }
     });
 });
-
-
 
 // Запуск сервера
 server.listen(6273, () => {
