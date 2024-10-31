@@ -1,0 +1,32 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Создание комнаты</title>
+    <link rel="stylesheet" href="/style.css">
+</head>
+<body>
+    <h1>Создать комнату для игры</h1>
+    <button id="createRoomButton">Создать комнату</button>
+    <pre id="roomIdDisplay">ID комнаты появится здесь</pre>
+
+    <script src="/socket.io/socket.io.js"></script>
+    <script>
+        const socket = io();
+        const createRoomButton = document.getElementById('createRoomButton');
+        const roomIdDisplay = document.getElementById('roomIdDisplay');
+
+        // Создание комнаты и отображение ID
+        createRoomButton.addEventListener('click', () => {
+            socket.emit('createRoom');
+        });
+
+        // Отображаем ID созданной комнаты
+        socket.on('roomCreated', (roomId) => {
+            roomIdDisplay.textContent = `ID комнаты: ${roomId}`;
+            roomIdDisplay.innerHTML = `<a href="/room/${roomId}">Присоединиться к комнате</a>`;
+        });
+    </script>
+</body>
+</html>

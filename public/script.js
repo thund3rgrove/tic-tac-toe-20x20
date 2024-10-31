@@ -6,12 +6,27 @@ let resetButton = document.getElementById('resetButton');
 resetButton.addEventListener('click', resetBoard);
 
 let lockBoard = false;
-let currentTurn = 0;
-let possibleElements = {
-    0: 'X',
-    1: 'Y',
-    2: 'Z'
-};
+let possibleElements = ['X', 'Y', 'Z']; // Изменено на массив
+let currentTurn = 0; // Добавлено для отслеживания текущего хода
+
+// Создание нового соединения с сервером
+const socket = io();
+
+// Получаем roomId из URL
+const roomId = window.location.pathname.split('/').pop();
+
+// Получаем обновление доски от сервера
+socket.on('updateBoard', (boardState) => {
+    console.log('need to update the board')
+    updateBoardUI(boardState);
+    updateCurrentPlayer(); // Обновляем текущего игрока после обновления доски
+});
+
+// Получаем сообщение об окончании игры
+socket.on('gameOver', (winner) => {
+    currentPlayerTitle.innerHTML = "Победа игрока " + winner;
+    lockBoard = true;
+});
 
 // Инициализация доски
 function initBoard() {
@@ -29,68 +44,40 @@ function initBoard() {
     });
 }
 
+// Обновление доски в UI
+function updateBoardUI(boardState) {
+    boardState.forEach((row, i) => {
+        row.forEach((cell, j) => {
+            console.log('row', row)
+            console.log('cell', cell)
+            board.rows[i].cells[j].innerHTML = cell;
+        });
+    });
+}
+
 // Обновление отображения текущего игрока
 function updateCurrentPlayer() {
-    currentPlayerLabel.innerHTML = possibleElements[currentTurn % 3];
-}
-
-// Проверка победы
-function checkDirection(row, col, rowDir, colDir) {
-    const symbol = board.rows[row].cells[col].innerHTML;
-    if (symbol === '_') return false;
-
-    for (let offset = -3; offset <= 0; offset++) {
-        let match = true;
-        for (let i = 0; i < 4; i++) {
-            let r = row + (offset + i) * rowDir;
-            let c = col + (offset + i) * colDir;
-            if (r < 0 || r >= 20 || c < 0 || c >= 20 || board.rows[r].cells[c].innerHTML !== symbol) {
-                match = false;
-                break;
-            }
-        }
-        if (match) return true;
+    if (!lockBoard) {
+        currentPlayerLabel.innerHTML = possibleElements[currentTurn % 3]; // Обновляем текущего игрока
     }
-    return false;
-}
-
-function checkWin(row, col) {
-    return (
-        checkDirection(row, col, 0, 1) ||   // горизонталь
-        checkDirection(row, col, 1, 0) ||   // вертикаль
-        checkDirection(row, col, 1, 1) ||   // диагональ слева направо
-        checkDirection(row, col, 1, -1)     // диагональ справа налево
-    );
 }
 
 // Обработчик кликов
 function cellClickHandler(event) {
     if (lockBoard) return; // Игра окончена
     let curr_cell = event.target;
-    if (curr_cell.innerHTML !== '_') return;
-
     let row = parseInt(curr_cell.getAttribute('_row'));
     let col = parseInt(curr_cell.getAttribute('_col'));
 
-    curr_cell.innerHTML = possibleElements[currentTurn % 3];
-    
-    if (checkWin(row, col)) {
-        currentPlayerTitle.innerHTML = "Победа игрока";
-        currentPlayerLabel.innerHTML = curr_cell.innerHTML;
-        lockBoard = true;
-    } else {
-        currentTurn += 1;
-        updateCurrentPlayer();
+    if (curr_cell.innerHTML === '_') {
+        socket.emit('makeMove', { roomId, row, col }); // Отправляем ход на сервер
     }
 }
 
 // Сброс доски
 function resetBoard() {
-    document.querySelectorAll('td').forEach(cell => (cell.innerHTML = '_'));
-    currentTurn = 0;
-    lockBoard = false;
-    currentPlayerTitle.innerHTML = "Ход игрока";
-    updateCurrentPlayer();
+    // Отправляем сообщение на сервер для сброса состояния, если требуется
+    socket.emit('resetGame', roomId); // Для сброса игры
 }
 
 // Начальная настройка

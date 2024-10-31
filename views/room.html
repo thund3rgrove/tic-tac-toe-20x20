@@ -1,0 +1,33 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Комната для игры</title>
+    <link rel="stylesheet" href="/style.css">
+</head>
+<body>
+    <h1>Добро пожаловать в комнату игры</h1>
+    <main>
+        <h2><span id="currentPlayerTitle">Ход игрока</span> <span id="currentPlayerLabel"></span></h2>
+        <button id="resetButton">Играть сначала</button>
+        <table id="board"></table>
+    </main>
+
+    <script src="/socket.io/socket.io.js"></script>
+    <script src="/script.js"></script>
+    <script>
+        // Присоединяемся к комнате
+        socket.emit('joinRoom', roomId);
+
+        socket.on('updateBoard', (game) => {
+            console.log('got board updated')
+        });
+
+        // Получаем сообщения от других игроков
+        socket.on('message', (message) => {
+            alert(message); // Например, сообщение о новом игроке
+        });
+    </script>
+</body>
+</html>
