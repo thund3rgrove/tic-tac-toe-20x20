@@ -1,0 +1,23 @@
+{
+  "name": "tic-tac-toe-20x20",
+  "version": "1.0.0",
+  "description": "",
+  "main": "index.js",
+  "scripts": {
+    "test": "echo \"Error: no test specified\" && exit 1"
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/thund3rgrove/tic-tac-toe-20x20.git"
+  },
+  "author": "",
+  "license": "ISC",
+  "bugs": {
+    "url": "https://github.com/thund3rgrove/tic-tac-toe-20x20/issues"
+  },
+  "homepage": "https://github.com/thund3rgrove/tic-tac-toe-20x20#readme",
+  "dependencies": {
+    "express": "^4.21.1",
+    "socket.io": "^4.8.1"
+  }
+}
