@@ -22,6 +22,10 @@ app.get('/', (req, res) => {
     res.sendFile(join(__dirname, 'views', 'index.html'));
 });
 
+app.get('/lobby/:lobbyId', (req, res) => {
+    res.sendFile(join(__dirname, 'views', 'lobby.html'));
+});
+
 // Страница комнаты
 app.get('/room/:roomId', (req, res) => {
     res.sendFile(join(__dirname, 'views', 'room.html'));
@@ -51,6 +55,13 @@ io.on('connection', (socket) => {
         socket.join(roomId);
         socket.emit('roomCreated', roomId);
     });
+
+    // joinLobby
+    // нужно добавлять проверку, если человек присоединяется в лобби, в котором уже началась игра, то мы делаем проверку
+    // если он существовал в лобби до выхода, то мы подсоединяем его в room
+    // если нет, то пишем, что игра уже началась
+    
+    
 
     // Подключение к существующей комнате с именем
     socket.on('joinRoom', ({ roomId, username }) => {
@@ -85,6 +96,12 @@ io.on('connection', (socket) => {
         io.to(roomId).emit('updateCurrentTurn', lobbies[roomId].currentTurn);
         socket.emit('updateBoard', lobbies[roomId].game);
     });
+
+    // Обработка лобби
+    socket.on('updateLobbySettings', ({ roomId, settings }) => {
+        console.log('new settings for room', roomId)
+        console.log(settings)
+    })
 
     // Обработка хода
     socket.on('makeMove', ({ roomId, row, col }) => {
