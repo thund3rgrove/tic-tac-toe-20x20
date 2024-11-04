@@ -28,7 +28,7 @@ app.get('/room/:roomId', (req, res) => {
 });
 
 // Лобби для хранения комнат и состояния игры
-const lobby = {};
+const lobbies = {};
 
 // Слушаем события подключения
 io.on('connection', (socket) => {
@@ -37,8 +37,14 @@ io.on('connection', (socket) => {
     // Создание комнаты и подключение пользователя
     socket.on('createRoom', () => {
         const roomId = crypto.randomUUID();
-        lobby[roomId] = {
+        lobbies[roomId] = {
             game: Array.from({ length: CONSTRAINTS.BOARD_SIZE }, () => Array(CONSTRAINTS.BOARD_SIZE).fill('_')),
+            settings: {
+                maxPlayers: CONSTRAINTS.MAX_PLAYERS,
+                lineLengthToWin: CONSTRAINTS.LINE_LENGTH_TO_WIN,
+                boardSize: CONSTRAINTS.BOARD_SIZE,
+                playerPawns: CONSTRAINTS.PLAYER_PAWNS
+            },
             players: [],
             currentTurn: 0 // Изначально первый игрок
         };
@@ -48,12 +54,12 @@ io.on('connection', (socket) => {
 
     // Подключение к существующей комнате с именем
     socket.on('joinRoom', ({ roomId, username }) => {
-        if (!lobby[roomId]) {
+        if (!lobbies[roomId]) {
             socket.emit('error', 'Комната не существует');
             return;
         }
 
-        const existingPlayer = lobby[roomId].players.find(player => player.username === username);
+        const existingPlayer = lobbies[roomId].players.find(player => player.username === username);
 
         if (existingPlayer) {
             existingPlayer.id = socket.id;
@@ -61,28 +67,28 @@ io.on('connection', (socket) => {
             socket.join(roomId);
             socket.emit('roomJoined', { roomId, player: existingPlayer });
         } else {
-            const playerNumber = lobby[roomId].players.length;
+            const playerNumber = lobbies[roomId].players.length;
             if (playerNumber >= 3) {
                 socket.emit('error', 'Комната уже заполнена');
                 return;
             }
 
             const newPlayer = { id: socket.id, username, number: playerNumber, isConnected: true };
-            lobby[roomId].players.push(newPlayer);
+            lobbies[roomId].players.push(newPlayer);
             socket.join(roomId);
             socket.emit('roomJoined', { roomId, player: newPlayer });
             io.to(roomId).emit('message', `${username} присоединился к комнате`);
         }
 
         // Отправляем обновленный список игроков всем в комнате
-        io.to(roomId).emit('updatePlayers', lobby[roomId].players);
-        io.to(roomId).emit('updateCurrentTurn', lobby[roomId].currentTurn);
-        socket.emit('updateBoard', lobby[roomId].game);
+        io.to(roomId).emit('updatePlayers', lobbies[roomId].players);
+        io.to(roomId).emit('updateCurrentTurn', lobbies[roomId].currentTurn);
+        socket.emit('updateBoard', lobbies[roomId].game);
     });
 
     // Обработка хода
     socket.on('makeMove', ({ roomId, row, col }) => {
-        const room = lobby[roomId];
+        const room = lobbies[roomId];
         if (!room) {
             socket.emit('error', 'Комната не существует');
             return;
@@ -98,63 +104,63 @@ io.on('connection', (socket) => {
                 return;
             }
 
-            const symbol = CONSTRAINTS.PLAYER_PAWNS[currentTurn];
+            const symbol = room.settings.playerPawns[currentTurn];
             game[row][col] = symbol; // Обновляем состояние игры
 
             io.to(roomId).emit('updateBoard', game); // Отправляем обновлённое состояние доски всем игрокам
 
             // Проверка на победу
-            if (checkWin(game, row, col)) {
+            if (checkWin(game, row, col, room.settings)) {
                 io.to(roomId).emit('gameOver', currentTurn);
             } else {
-                room.currentTurn = (currentTurn + 1) % CONSTRAINTS.MAX_PLAYERS; // Переход к следующему игроку
+                room.currentTurn = (currentTurn + 1) % room.settings.maxPlayers; // Переход к следующему игроку
                 io.to(roomId).emit('updateCurrentTurn', room.currentTurn);
             }
         }
     });
 
-    function checkWin(board, row, col) {
+    function checkWin(board, row, col, roomSettings) {
         return (
-            checkDirection(board, row, col, 0, 1) ||   // горизонталь
-            checkDirection(board, row, col, 1, 0) ||   // вертикаль
-            checkDirection(board, row, col, 1, 1) ||   // диагональ слева направо
-            checkDirection(board, row, col, 1, -1)     // диагональ справа налево
+            checkDirection(board, row, col, 0, 1, roomSettings) ||   // горизонталь
+            checkDirection(board, row, col, 1, 0, roomSettings) ||   // вертикаль
+            checkDirection(board, row, col, 1, 1, roomSettings) ||   // диагональ слева направо
+            checkDirection(board, row, col, 1, -1, roomSettings)     // диагональ справа налево
         );
     }
 
-    function checkDirection(board, row, col, rowDir, colDir) {
+    function checkDirection(board, row, col, rowDir, colDir, roomSettings) {
         const symbol = board[row][col];
         if (symbol === '_') return false;
 
         let count = 1;
 
         // Проверяем в положительном направлении
-        for (let i = 1; i < CONSTRAINTS.LINE_LENGTH_TO_WIN; i++) {
+        for (let i = 1; i < roomSettings.lineLengthToWin; i++) {
             const r = row + i * rowDir;
             const c = col + i * colDir;
-            if (r < 0 || r >= CONSTRAINTS.BOARD_SIZE || c < 0 || c >= CONSTRAINTS.BOARD_SIZE || board[r][c] !== symbol) {
+            if (r < 0 || r >= roomSettings.boardSize || c < 0 || c >= roomSettings.boardSize || board[r][c] !== symbol) {
                 break;
             }
             count++;
         }
 
         // Проверяем в отрицательном направлении
-        for (let i = 1; i < CONSTRAINTS.LINE_LENGTH_TO_WIN; i++) {
+        for (let i = 1; i < roomSettings.lineLengthToWin; i++) {
             const r = row - i * rowDir;
             const c = col - i * colDir;
-            if (r < 0 || r >= CONSTRAINTS.BOARD_SIZE || c < 0 || c >= CONSTRAINTS.BOARD_SIZE || board[r][c] !== symbol) {
+            if (r < 0 || r >= roomSettings.boardSize || c < 0 || c >= roomSettings.boardSize || board[r][c] !== symbol) {
                 break;
             }
             count++;
         }
 
-        return count >= CONSTRAINTS.LINE_LENGTH_TO_WIN;
+        return count >= roomSettings.lineLengthToWin;
     }
 
     // Обработка отключения
     socket.on('disconnect', () => {
-        for (const roomId in lobby) {
-            const room = lobby[roomId];
+        for (const roomId in lobbies) {
+            const room = lobbies[roomId];
             const player = room.players.find(player => player.id === socket.id);
 
             if (player) {
